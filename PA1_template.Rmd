@@ -1,5 +1,6 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: "Nornadia"
 output: 
   html_document:
     keep_md: true
@@ -8,18 +9,120 @@ output:
 
 ## Loading and preprocessing the data
 
+This section covers the loading of the data and the preparation for future analysis.
 
+
+```{r SetWD,echo=FALSE}
+setwd("/Users/Acer/Desktop/RepData_PeerAssessment1")
+
+```
+
+Read in the `activity.csv` file that contains the raw data
+
+```{r Read Table}
+activity <- read.csv(file = "./activity.csv",header = TRUE,sep = ",")
+
+```
+
+Print out the first 6 rows of the loaded data and the Column Names.
+
+```{r Data Summary, echo=FALSE}
+head(activity)
+names(activity)
+```
+
+Convert the date column from a character vector to a date
+
+```{r Date Conversion}
+activity$date <- as.Date(x = activity$date,format = "%Y-%m-%d")
+```
 
 ## What is mean total number of steps taken per day?
 
+Calculation of the total number of steps taken per day and create a histogram
 
+```{r Total_Steps_per_Day}
+steps <- aggregate(steps~date,activity,sum, na.rm = TRUE)
+hist(steps$steps,main = "Steps per Day", xlab = "Total Steps per Day", ylab = "Number of Days", col = "blue")
+```
+
+Calculate the Mean and Median Values
+
+```{r Mean / Median Steps,echo=FALSE}
+meansteps <- mean(steps$steps)
+print(sprintf("Mean total steps taken per day: %f", meansteps))
+
+mediansteps <- median(steps$steps)
+print(sprintf("Median total steps taken per day: %f", mediansteps))
+```
 
 ## What is the average daily activity pattern?
 
+A time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis)
+
+```{r Avg_Daily_Activity_Pattern}
+avgactivity <- aggregate(steps~interval,activity,mean,na.rm = TRUE)
+plot(x = avgactivity$interval,y = avgactivity$steps,type = "l",xlab = "5 Minute Interval", ylab = "Average Number of Steps",main = "Average Daily Activity Planner")
+```
+
+
+Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
+
+```{r Max Avg Daily Number of Steps}
+max.avgactivity <- avgactivity$interval[avgactivity$steps == max(avgactivity$steps)]
+print(sprintf("5-min time Interval with maximum average steps taken per day: %i",max.avgactivity))
+```
 
 
 ## Imputing missing values
 
+Calculate and report the total number of missing values in the dataset
 
+```{r Missing Values}
+na.count <- sum(!complete.cases(activity))
+print(sprintf("NA Count for rows with missing data: %i", na.count))
+
+```
+
+Fill in the missing date using mean data for missing values and created a new dataset called `avgactivity`
+
+```{r Complete Missing Data}
+newactivity <- activity
+sapply(unique(activity$interval),
+       function(x)
+         newactivity[!complete.cases(newactivity) & (newactivity$interval == x),1] <<- avgactivity$steps[avgactivity$interval == x])
+```
+
+Calculation of the total number of steps taken per day and create a histogram
+
+```{r Total_Steps_per_Day_Filled}
+newsteps <- aggregate(steps~date,newactivity,sum)
+hist(newsteps$steps,main = "Steps per Day", xlab = "Total Steps per Day", ylab = "Number of Days", col = "blue")
+```
+
+Calculate the Mean and Median Values
+
+```{r Mean / Median Steps with Filled Data,echo=FALSE}
+newmeansteps <- mean(newsteps$steps)
+print(sprintf("Mean total steps taken per day: %f", newmeansteps))
+
+newmediansteps <- median(newsteps$steps)
+print(sprintf("Median total steps taken per day: %f", newmediansteps))
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r Weekday}
+newactivity$weekend <- "weekday"
+newactivity$weekend[weekdays(newactivity$date) %in% c("Saturday", "Sunday")] <- "weekend"
+newactivity$weekend <- as.factor(newactivity$weekend)
+stepsbyday <- aggregate(steps~interval + weekend,data = newactivity,FUN = mean)
+```
+
+Make a panel plot containing a time series plot (i.e. type = "l") of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). See the README file in the GitHub repository to see an example of what this plot should look like using simulated data.
+
+
+```{r Weekday_Plot, echo=FALSE}
+library(lattice)
+xyplot(steps~interval | weekend,stepsbyday,type = "l", layout = c(1,2),xlab = "Interval", ylab = "Number of Steps")
+```
